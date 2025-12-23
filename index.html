@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Recursos da Escola</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 10px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+input, select {
+  padding: 6px;
+  font-size: 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  vertical-align: top;
+}
+
+th {
+  background: #f2f2f2;
+}
+
+img {
+  max-width: 80px;
+  max-height: 80px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Inventário de Recursos da Escola</h1>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Buscar...">
+  <select id="disciplina">
+    <option value="">Todas as disciplinas</option>
+  </select>
+  <select id="faixa">
+    <option value="">Todas as faixas etárias</option>
+  </select>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Foto</th>
+      <th>Nome</th>
+      <th>Código</th>
+      <th>Faixa etária</th>
+      <th>Disciplina</th>
+      <th>Descrição</th>
+      <th>Local</th>
+      <th>Quantidade</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+const CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vTgUPhDy4E_dzooS8AtR7_zThdFq9zAPw_agcp_f0GsBgYzkGI-ZhKH3c66tJN4xkFmJpkxF3vtVd3z/pub?output=csv";
+
+let dados = [];
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const n = text[i + 1];
+
+    if (c === '"' && insideQuotes && n === '"') {
+      value += '"';
+      i++;
+    } else if (c === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (c === "," && !insideQuotes) {
+      row.push(value);
+      value = "";
+    } else if (c === "\n" && !insideQuotes) {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += c;
+    }
+  }
+
+  if (value) {
+    row.push(value);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+fetch(CSV_URL)
+  .then(r => r.text())
+  .then(text => {
+    const linhas = parseCSV(text).slice(1);
+
+    linhas.forEach(c => {
+      if (c.length >= 9) {
+        dados.push({
+          nome: c[0],
+          fotoURL: c[2],
+          codigo: c[3],
+          faixa: c[4],
+          disciplina: c[5],
+          descricao: c[6],
+          local: c[7],
+          quantidade: c[8]
+        });
+      }
+    });
+
+    preencherFiltros();
+    render();
+  });
+
+function preencherFiltros() {
+  [...new Set(dados.map(d => d.disciplina))]
+    .forEach(v => v && (disciplina.innerHTML += `<option>${v}</option>`));
+
+  [...new Set(dados.map(d => d.faixa))]
+    .forEach(v => v && (faixa.innerHTML += `<option>${v}</option>`));
+}
+
+function render() {
+  const b = search.value.toLowerCase();
+  const d = disciplina.value;
+  const f = faixa.value;
+
+  tbody.innerHTML = "";
+
+  dados
+    .filter(x =>
+      (!d || x.disciplina === d) &&
+      (!f || x.faixa === f) &&
+      Object.values(x).join(" ").toLowerCase().includes(b)
+    )
+    .forEach(x => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${x.fotoURL ? `<img src="${x.fotoURL}">` : ""}</td>
+          <td>${x.nome}</td>
+          <td>${x.codigo}</td>
+          <td>${x.faixa}</td>
+          <td>${x.disciplina}</td>
+          <td>${x.descricao}</td>
+          <td>${x.local}</td>
+          <td>${x.quantidade}</td>
+        </tr>`;
+    });
+}
+
+search.oninput = render;
+disciplina.onchange = render;
+faixa.onchange = render;
+</script>
+
+</body>
+</html>
